@@ -9,7 +9,6 @@ As of version 0.1, the application converts a folder of images into a manga-styl
 ## TODO
 
 - currently only converts manga (right-to-left): create an option that allows switching between right-to-left and left-to-right formatting
-- currently does not limit display length of selected folder name: limit length and reformat so that text cannot run outside window
 - improve error handling and implement basic tests
 - prevent inputs while ebook is generating and provide loading bar or other feedback
 - overhaul UI and add custom (themed?) graphics

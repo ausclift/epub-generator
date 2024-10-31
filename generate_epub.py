@@ -254,14 +254,20 @@ def create_image_epub(source_folder):
     
     messagebox.showinfo("ePUB Created Successfully", f"'{os.path.basename(source_folder)}.epub' " \
                         f"has been created in '{os.path.dirname(source_folder)}'.")
-from tkinter import Tk, Label, Button, filedialog, messagebox
+
+def limit_label_length(label):
+    if len(label) > 32:
+        label = label[:32] + '...'
+        
+    return label
+    
 
 # GUI setup
 def select_source_folder():
     global source_folder
     source_folder = filedialog.askdirectory(title="Select Source Folder")
     if source_folder:
-        source_label.config(text=f"Source:\n{os.path.basename(source_folder)}")
+        source_label.config(text=f"Source:\n{limit_label_length(os.path.basename(source_folder))}")
 
 def start_process():
     if not source_folder:
