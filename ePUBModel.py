@@ -2,7 +2,7 @@ import os
 import zipfile
 import shutil
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from PIL import Image
 from natsort import natsorted
 from pathlib import Path
@@ -15,18 +15,19 @@ class ePUBModel:
     # Collect all images in the source folder
     def collect_images(self, source_folder):
         source_path = Path(source_folder)
-        
-        original_image_files = sorted(source_path.glob("*.jpg")) + \
-                            sorted(source_path.glob("*.jpeg")) + \
-                            sorted(source_path.glob("*.png")) + \
-                            sorted(source_path.glob("*.JPG")) + \
-                            sorted(source_path.glob("*.JPEG")) + \
-                            sorted(source_path.glob("*.PNG"))
-        
+
+        # Valid image extensions
+        image_extensions = {'.jpg', '.jpeg', '.png'}
+
+        original_image_files = sorted(
+            file for file in source_path.rglob("*")
+                if file.suffix.lower() in image_extensions
+        )
+
         original_image_files = natsorted([str(file) for file in original_image_files])
         
         if not original_image_files:
-            raise ValueError(f"No images found in source: {source_folder}.")
+            raise ValueError(f"No images found in '{source_folder}'.")
         
         return original_image_files
 
@@ -44,11 +45,11 @@ class ePUBModel:
     # Write the `container.xml` file
     def write_container_xml(self):
         container_content = '''<?xml version="1.0" encoding="UTF-8"?>
-    <container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
-    <rootfiles>
-        <rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/>
-    </rootfiles>
-    </container>'''
+<container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
+  <rootfiles>
+    <rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/>
+  </rootfiles>
+</container>'''
         with open("EPUB/META-INF/container.xml", "w", encoding="utf-8") as f:
             f.write(container_content)
 
@@ -98,7 +99,7 @@ class ePUBModel:
 
     # Write the `content.opf` file with manga mode metadata
     def write_content_opf(self, image_files, book_uuid, cover_extension):
-        modified_time = datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ')
+        modified_time = datetime.now(timezone.utc).isoformat(timespec='seconds')
         
         manifest_items = "\n".join([
             f'    <item id="img{i+1}" href="{image_files[i][11:]}" media-type="image/{os.path.splitext(image_files[i])[1][1:]}" />\n'
@@ -112,27 +113,27 @@ class ePUBModel:
         ])
 
         content_opf = f'''<?xml version="1.0" encoding="UTF-8"?>
-    <package xmlns="http://www.idpf.org/2007/opf" unique-identifier="bookid" version="3.0">
-    <metadata xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:rendition="http://www.idpf.org/2013/rendition">
-        <dc:title>ePUB</dc:title>
-        <dc:language>en</dc:language>
-        <dc:identifier id="bookid">{book_uuid}</dc:identifier>
-        <meta property="rendition:layout">pre-paginated</meta>
-        <meta property="rendition:orientation">portrait</meta>
-        <meta property="rendition:spread">portrait</meta>
-        <meta property="dcterms:modified">{modified_time}</meta>
-    </metadata>
-    <manifest>
-        <item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>
-        <item id="css" href="html/style.css" media-type="text/css"/>
-        <item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>
-        <item id="cover-image" href="images/cover.{cover_extension}" media-type="image/{cover_extension}" properties="cover-image"/>
-    {manifest_items}
-    </manifest>
-    <spine toc="ncx" page-progression-direction="rtl">
-    {spine_items}
-    </spine>
-    </package>'''
+<package xmlns="http://www.idpf.org/2007/opf" unique-identifier="bookid" version="3.0">
+  <metadata xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:rendition="http://www.idpf.org/2013/rendition">
+    <dc:title>ePUB</dc:title>
+    <dc:language>en</dc:language>
+    <dc:identifier id="bookid">{book_uuid}</dc:identifier>
+    <meta property="rendition:layout">pre-paginated</meta>
+    <meta property="rendition:orientation">portrait</meta>
+    <meta property="rendition:spread">portrait</meta>
+    <meta property="dcterms:modified">{modified_time}</meta>
+  </metadata>
+  <manifest>
+    <item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>
+    <item id="css" href="html/style.css" media-type="text/css"/>
+    <item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>
+    <item id="cover-image" href="images/cover.{cover_extension}" media-type="image/{cover_extension}" properties="cover-image"/>
+{manifest_items}
+  </manifest>
+  <spine toc="ncx" page-progression-direction="rtl">
+{spine_items}
+  </spine>
+</package>'''
         with open("EPUB/OEBPS/content.opf", "w", encoding="utf-8") as f:
             f.write(content_opf)
 
@@ -140,22 +141,22 @@ class ePUBModel:
     def write_toc_ncx(self, image_files, book_uuid):
         nav_points = "\n".join([
             f'''    <navPoint id="navPoint-{i+1}" playOrder="{i+1}">
-        <navLabel><text>image{i+1}</text></navLabel>
-        <content src="html/image-{i+1:04d}.html"/>
-        </navPoint>''' for i in range(len(image_files))
+      <navLabel><text>image{i+1}</text></navLabel>
+      <content src="html/image-{i+1:04d}.html"/>
+    </navPoint>''' for i in range(len(image_files))
         ])
 
         toc_ncx = f'''<?xml version="1.0" encoding="UTF-8"?>
-    <!DOCTYPE ncx PUBLIC "-//NISO//DTD ncx 2005-1//EN" "http://www.daisy.org/z3986/2005/ncx-2005-1.dtd">
-    <ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1">
-    <head>
-        <meta name="dtb:uid" content="{book_uuid}"/>
-    </head>
-    <docTitle><text>ePUB</text></docTitle>
-    <navMap>
-    {nav_points}
-    </navMap>
-    </ncx>'''
+<!DOCTYPE ncx PUBLIC "-//NISO//DTD ncx 2005-1//EN" "http://www.daisy.org/z3986/2005/ncx-2005-1.dtd">
+<ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1">
+  <head>
+    <meta name="dtb:uid" content="{book_uuid}"/>
+  </head>
+  <docTitle><text>ePUB</text></docTitle>
+  <navMap>
+{nav_points}
+  </navMap>
+</ncx>'''
         with open("EPUB/OEBPS/toc.ncx", "w", encoding="utf-8") as f:
             f.write(toc_ncx)
 
@@ -166,20 +167,20 @@ class ePUBModel:
         ])
         
         nav_xhtml = f'''<?xml version="1.0" encoding="UTF-8"?>
-    <!DOCTYPE html>
-    <html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">
-    <head>
-        <title>Navigation</title>
-    </head>
-    <body>
-        <nav epub:type="toc" id="toc">
-        <h1>Table of Contents</h1>
-        <ol>
-    {nav_items}
-        </ol>
-        </nav>
-    </body>
-    </html>'''
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">
+  <head>
+    <title>Navigation</title>
+  </head>
+  <body>
+    <nav epub:type="toc" id="toc">
+      <h1>Table of Contents</h1>
+      <ol>
+{nav_items}
+      </ol>
+    </nav>
+  </body>
+</html>'''
         
         with open("EPUB/OEBPS/nav.xhtml", "w", encoding="utf-8") as f:
             f.write(nav_xhtml)
@@ -187,14 +188,14 @@ class ePUBModel:
     # Copy images and create XHTML files for each image with exact dimensions
     def add_html(self, image_files):
         css = '''@page {
-    margin: 0;
-    }
+  margin: 0;
+}
 
-    body {
-    display: block;
-    margin: 0;
-    padding: 0;
-    }'''
+body {
+  display: block;
+  margin: 0;
+  padding: 0;
+}'''
 
         with open("EPUB/OEBPS/html/style.css", "w", encoding="utf-8") as f:
             f.write(css)
@@ -205,18 +206,18 @@ class ePUBModel:
                 width, height = img.size
 
             html_content = f'''<!DOCTYPE html>
-    <html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">
-    <head>
-        <title>image{i+1}</title>
-        <link href="style.css" type="text/css" rel="stylesheet"/>
-        <meta name="viewport" content="width={width}, height={height}"/>
-    </head>
-    <body>
-        <div style="text-align:center;top:0.0%;">
-        <img width="{width}" height="{height}" src="../images/{image_filename}" alt="{image_filename}"/>
-        </div>
-    </body>
-    </html>'''
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">
+  <head>
+    <title>image{i+1}</title>
+    <link href="style.css" type="text/css" rel="stylesheet"/>
+    <meta name="viewport" content="width={width}, height={height}"/>
+  </head>
+  <body>
+    <div style="text-align:center;top:0.0%;">
+    <img width="{width}" height="{height}" src="../images/{image_filename}" alt="{image_filename}"/>
+    </div>
+  </body>
+</html>'''
             with open(f"EPUB/OEBPS/html/image-{i+1:04d}.html", "w", encoding="utf-8") as f:
                 f.write(html_content)
 

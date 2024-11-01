@@ -4,7 +4,7 @@ ePUB Generator is an application for Mac OS that converts a folder of images to 
 
 ## Current Version Limitations (Oct. 31, 2024)
 
-As of version 0.1, the application converts a folder of images into a manga-style ePUB.  It can accommodate jpg/jpeg and png images. Mixed cased files types may not be recognized– e.g. jPEG, PnG. Spreads (image width > height) are automatically split. If the first image of a set is a spread, the left side of the spread is used as the first page and cover. Oftentimes, this first-image spread is the cover of the manga where the left is the front cover and the right is the back cover. The back cover is not currently preserved.
+As of version 0.1, the application converts a folder of images into a manga-style ePUB.  It can accommodate jpg/jpeg and png images. Spreads (image width > height) are automatically split. If the first image of a set is a spread, the left side of the spread is used as the first page and cover. Oftentimes, this first-image spread is the cover of the manga where the left is the front cover and the right is the back cover. The back cover is not currently preserved.
 
 ## TODO
 

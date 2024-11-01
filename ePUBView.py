@@ -4,16 +4,16 @@ from ePUBModel import ePUBModel
 
 class EPUBView:
     def __init__(self, root):
-        # tkinter setup
+        # Set up tkinter
         self.root = root
         self.root.title("ePUB Converter")
         self.root.minsize(400, 200)
         
-        # init fields
+        # Initiate fields
         self.model = ePUBModel()
         self.source_folder = ""
 
-        # init UI elements
+        # Initiate UI elements
         self.select_source_button = Button(root, text="Select Source Folder", command=self.select_source_folder)
         self.select_source_button.grid(row=0, column=0, columnspan=2, pady=20)
 
@@ -34,13 +34,13 @@ class EPUBView:
             label = label[:32] + '...'
         return label
 
-    # 'SELECT SOURCE' button
+    # Define 'SELECT SOURCE' button
     def select_source_folder(self):
         self.source_folder = filedialog.askdirectory(title="Select Source Folder")
         if self.source_folder:
             self.source_label.config(text=f"Source:\n{self.limit_label_length(os.path.basename(self.source_folder))}")
 
-    # 'START' button
+    # Define 'START' button
     def start_process(self):
         if not self.source_folder:
             messagebox.showwarning("Input Required", "Please select a source folder.")
@@ -52,7 +52,7 @@ class EPUBView:
             except Exception as e:
                 messagebox.showerror("Error", str(e))
 
-    # 'QUIT' button
+    # Define 'QUIT' button
     def quit_program(self):
         self.root.destroy()
 
