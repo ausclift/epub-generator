@@ -1,6 +1,6 @@
 from setuptools import setup
 
-APP = ['generate_epub.py']
+APP = ['ePUBView.py']
 DATA_FILES = ['icon.jpg']
 
 setup(
