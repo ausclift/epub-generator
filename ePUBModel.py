@@ -17,7 +17,7 @@ class ePUBModel:
         source_path = Path(source_folder)
 
         # Valid image extensions
-        image_extensions = {'.jpg', '.jpeg', '.png'}
+        image_extensions = {'.jpg', '.jpeg', '.png', '.webp'}
 
         original_image_files = sorted(
             file for file in source_path.rglob("*")
@@ -62,8 +62,10 @@ class ePUBModel:
             _, file_extension = os.path.splitext(image_path)
             if file_extension.lower() in {".jpg", ".jpeg"}:
                 file_extension = ".jpeg"
-            if file_extension.lower() == ".png":
+            elif file_extension.lower() == ".png":
                 file_extension = ".png"
+            elif file_extension.lower() == ".webp":
+                file_extension = ".webp"
 
             with Image.open(image_path) as img:
                 img = img.copy()

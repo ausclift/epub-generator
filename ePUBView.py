@@ -1,4 +1,5 @@
 import os
+import threading
 from tkinter import Tk, Label, Button, filedialog, messagebox
 from ePUBModel import ePUBModel
 
@@ -45,12 +46,25 @@ class EPUBView:
         if not self.source_folder:
             messagebox.showwarning("Input Required", "Please select a source folder.")
         else:
-            try:
-                self.model.create_image_epub(self.source_folder)
-                messagebox.showinfo("Success", f"'{os.path.basename(self.source_folder)}.epub' " \
-                            f"has been created in '{os.path.dirname(self.source_folder)}'.")
-            except Exception as e:
-                messagebox.showerror("Error", str(e))
+            # Disable buttons
+            self.select_source_button.config(state="disabled")
+            self.start_button.config(state="disabled")
+            
+            threading.Thread(target=self.create_epub).start()
+
+    def create_epub(self):
+        try:
+            # Run the model's create method
+            self.model.create_image_epub(self.source_folder)
+            messagebox.showinfo("Success", "ePUB created!")
+            
+        except Exception as e:
+            messagebox.showerror("Error", str(e))
+
+        finally:
+            # Enable buttons
+            self.select_source_button.config(state="normal")
+            self.start_button.config(state="normal")
 
     # Define 'QUIT' button
     def quit_program(self):
