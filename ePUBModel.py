@@ -11,6 +11,11 @@ class ePUBModel:
     def __init__(self):
         self.source_folder = ""
         self.manga = True #determines reading direction
+        self.progress_callback = None
+
+    def set_progress_callback(self, callback):
+        """Set the callback function for progress updates."""
+        self.progress_callback = callback
 
     # Collect all images in the source folder
     def collect_images(self, source_folder):
@@ -102,7 +107,8 @@ class ePUBModel:
     # Write the `content.opf` file with manga mode metadata
     def write_content_opf(self, image_files, book_uuid, cover_extension):
         modified_time = datetime.now(timezone.utc).isoformat(timespec='seconds')
-        
+        modified_time_z = modified_time.replace("+00:00", "Z")
+
         manifest_items = "\n".join([
             f'    <item id="img{i+1}" href="{image_files[i][11:]}" media-type="image/{os.path.splitext(image_files[i])[1][1:]}" />\n'
             f'    <item id="html{i+1}" href="html/image-{i+1:04d}.html" media-type="application/xhtml+xml"/>'
@@ -123,7 +129,7 @@ class ePUBModel:
     <meta property="rendition:layout">pre-paginated</meta>
     <meta property="rendition:orientation">portrait</meta>
     <meta property="rendition:spread">portrait</meta>
-    <meta property="dcterms:modified">{modified_time}</meta>
+    <meta property="dcterms:modified">{modified_time_z}</meta>
   </metadata>
   <manifest>
     <item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>
@@ -237,23 +243,30 @@ body {
     # Main function to create the ePUB
     def create_image_epub(self, source_folder):
         book_uuid = f"urn:uuid:{str(uuid.uuid4())}"
-                
+
         self.create_epub_structure()
+        self.progress_callback(5)
+
         self.write_mimetype()
         self.write_container_xml()
-        
         original_image_files = self.collect_images(source_folder)
+        self.progress_callback(10)
+
         cover_extension = self.copy_images(original_image_files)
+        self.progress_callback(50)
 
         epub_images_path = "EPUB/OEBPS/images"
-        
         image_files = self.collect_images(epub_images_path)
-            
         self.write_content_opf(image_files[1:], book_uuid, cover_extension)
         self.write_toc_ncx(image_files[1:], book_uuid)
         self.write_nav_xhtml(image_files[1:])
-        self.add_html(image_files[1:])
-        self.create_epub(source_folder)
+        self.progress_callback(55)
 
-        # Comment out for troubleshooting
+        self.add_html(image_files[1:])
+        self.progress_callback(60)
+
+        self.create_epub(source_folder)
+        self.progress_callback(99)
+
+        # Remove for troubleshooting
         shutil.rmtree("EPUB")
