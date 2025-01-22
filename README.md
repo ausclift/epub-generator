@@ -10,12 +10,14 @@ As of version 0.1, the application converts a folder of images into a manga-styl
 
 ## TODO
 
-- create an option that allows switching between right-to-left and left-to-right formatting
 - improve error handling and implement tests
 - create additional custom graphics
 - look into compatibility issues with Calibre
 
 ## Changelog
+
+Jan 22, 2025 - Not Yet Built
+- Implemented checkbox to toggle manga (right-to-left) and comic (left-to-right) mode
 
 Jan 16, 2025 - Current Build
 - Added a progress bar to track ePUB generation
