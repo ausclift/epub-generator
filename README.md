@@ -10,6 +10,8 @@ As of version 0.1, the application converts a folder of images into a manga-styl
 
 ## TODO
 
+- bloated functions, esp. for fonts - refactor code
+- add tooltip (or description) for direction toggle
 - improve error handling and implement tests
 - create additional custom graphics
 - look into compatibility issues with Calibre
@@ -17,7 +19,8 @@ As of version 0.1, the application converts a folder of images into a manga-styl
 ## Changelog
 
 Jan 22, 2025 - Not Yet Built
-- Implemented checkbox to toggle manga (right-to-left) and comic (left-to-right) mode
+- Implemented checkbox to toggle manga mode (default ON)
+- Added dynamic checkbox description
 
 Jan 16, 2025 - Current Build
 - Added a progress bar to track ePUB generation

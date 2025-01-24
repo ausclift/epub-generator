@@ -1,5 +1,5 @@
 import os, threading, time, zipfile, shutil, uuid, tkinter
-from tkinter import Tk, ttk, Label, Button, filedialog, messagebox, font, Checkbutton
+from tkinter import Tk, ttk, Label, Button, filedialog, messagebox, font, Checkbutton, Text
 from datetime import datetime, timezone
 from PIL import Image
 from natsort import natsorted
@@ -7,18 +7,18 @@ from pathlib import Path
 
 class ePUBModel:
     def __init__(self):
-        self.source_folder = ""
+        self.source_folder = ''
         self.progress_callback = None
 
-    def set_progress_callback(self, callback):
-        """Set the callback function for progress updates."""
-        self.progress_callback = callback
+    def set_progress_callback(self, function):
+        """Create callback function to send progress updates."""
+        self.progress_callback = function
 
-    # Collect all images in the source folder
     def collect_images(self, source_folder):
+        """Collect images in the source folder."""
         source_path = Path(source_folder)
 
-        # Valid image extensions
+        # valid image extensions
         image_extensions = {'.jpg', '.jpeg', '.png', '.webp'}
 
         original_image_files = sorted(
@@ -33,53 +33,61 @@ class ePUBModel:
         
         return original_image_files
 
-    # Define ePUB structure
     def create_epub_structure(self):
-        os.makedirs("EPUB/META-INF", exist_ok=True)
-        os.makedirs("EPUB/OEBPS/images", exist_ok=True)
-        os.makedirs("EPUB/OEBPS/html", exist_ok=True)
+        """Define ePUB Structure by creating the required folders."""
+        os.makedirs('EPUB/META-INF', exist_ok=True)
+        os.makedirs('EPUB/OEBPS/images', exist_ok=True)
+        os.makedirs('EPUB/OEBPS/html', exist_ok=True)
 
-    # Write the `mimetype` file
     def write_mimetype(self):
-        with open("EPUB/mimetype", "w") as f:
-            f.write("application/epub+zip")
+        """Write the `mimetype` file that defines the folder structure as an ePUB."""
+        with open('EPUB/mimetype', 'w') as f:
+            f.write('application/epub+zip')
 
-    # Write the `container.xml` file
     def write_container_xml(self):
+        """Write the `container.xml` file."""
         container_content = '''<?xml version="1.0" encoding="UTF-8"?>
 <container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
   <rootfiles>
     <rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/>
   </rootfiles>
 </container>'''
-        with open("EPUB/META-INF/container.xml", "w", encoding="utf-8") as f:
+        with open('EPUB/META-INF/container.xml', 'w', encoding='utf-8') as f:
             f.write(container_content)
 
-    # Duplicate/rename source images into 'images' directory
     def copy_images(self, image_files, reading_direction):
+        """Copy and rename source images into `images` directory."""
         ltr = reading_direction.get()
-        cover_extension = ""
+        cover_extension = ''
         for i, image_path in enumerate(image_files):
 
-            image_filename = f"image-{i+1:04d}"
+            image_filename = f'image-{i+1:04d}'
             _, file_extension = os.path.splitext(image_path)
-            if file_extension.lower() in {".jpg", ".jpeg"}:
-                file_extension = ".jpeg"
-            elif file_extension.lower() == ".png":
-                file_extension = ".png"
-            elif file_extension.lower() == ".webp":
-                file_extension = ".webp"
+            if file_extension.lower() in {'.jpg', '.jpeg'}:
+                file_extension = '.jpeg'
+            elif file_extension.lower() == '.png':
+                file_extension = '.png'
+            elif file_extension.lower() == '.webp':
+                file_extension = '.webp'
 
             with Image.open(image_path) as img:
                 img = img.copy()
                 width, height = img.size
-            
-            # Case for spreads
-            if width > height:
+        
+            if width <= height:
+                shutil.copy(image_path, f'EPUB/OEBPS/images/{image_filename}{file_extension}')
+
+                # save extension of cover
+                if i == 0:
+                    shutil.copy(image_path, 'EPUB/OEBPS/images/cover{file_extension}')
+                    cover_extension = file_extension
+                
+            # case for spreads
+            else:
                 mid_x = width // 2
                 
-                left_path = f"EPUB/OEBPS/images/{image_filename}-{'B' if ltr == 0 else 'A'}{file_extension}"
-                right_path = f"EPUB/OEBPS/images/{image_filename}-{'A' if ltr == 0 else 'B'}{file_extension}"
+                left_path = f'EPUB/OEBPS/images/{image_filename}-{'B' if ltr == 0 else 'A'}{file_extension}'
+                right_path = f'EPUB/OEBPS/images/{image_filename}-{'A' if ltr == 0 else 'B'}{file_extension}'
 
                 if i != 0:
                     image_left = img.crop((0, 0, mid_x, height))
@@ -87,43 +95,36 @@ class ePUBModel:
                     image_right = img.crop((mid_x+1, 0, width, height))
                     image_right.save(right_path)
 
+                # case if spread is first image
                 else:
-                    # Manga style (RTL)
+                    # manga style (right-to-left)
                     if ltr == 0:
                         image_left = img.crop((0, 0, mid_x, height))
                         image_left.save(left_path)
                         shutil.copy(left_path, f"EPUB/OEBPS/images/cover{file_extension}")
                         cover_extension = file_extension
 
-                    # Comic style (LTR)
+                    # comic style (left-to-right)
                     else:
                         image_right = img.crop((mid_x+1, 0, width, height))
                         image_right.save(right_path)
-                        shutil.copy(right_path, f"EPUB/OEBPS/images/cover{file_extension}")
+                        shutil.copy(right_path, f'EPUB/OEBPS/images/cover{file_extension}')
                         cover_extension = file_extension
-            
-            # Case for non-spreads
-            else:
-                shutil.copy(image_path, f"EPUB/OEBPS/images/{image_filename}{file_extension}")
-
-                if i == 0:
-                    shutil.copy(image_path, f"EPUB/OEBPS/images/cover{file_extension}")
-                    cover_extension = file_extension
 
         return cover_extension[1:]
 
-    # Write the `content.opf` file with manga mode metadata
     def write_content_opf(self, image_files, book_uuid, cover_extension, reading_direction):
+        """Write the `content.opf` file including page-progression-direction metadata."""
         modified_time = datetime.now(timezone.utc).isoformat(timespec='seconds')
-        modified_time_z = modified_time.replace("+00:00", "Z")
+        modified_time = modified_time.replace('+00:00', 'Z')
 
-        manifest_items = "\n".join([
+        manifest_items = '\n'.join([
             f'    <item id="img{i+1}" href="{image_files[i][11:]}" media-type="image/{os.path.splitext(image_files[i])[1][1:]}" />\n'
             f'    <item id="html{i+1}" href="html/image-{i+1:04d}.html" media-type="application/xhtml+xml"/>'
             for i in range(len(image_files))
         ])
-        
-        spine_items = "\n".join([
+
+        spine_items = '\n'.join([
             f'    <itemref idref="html{i+1}"/>'
             for i in range(len(image_files))
         ])
@@ -137,7 +138,7 @@ class ePUBModel:
     <meta property="rendition:layout">pre-paginated</meta>
     <meta property="rendition:orientation">portrait</meta>
     <meta property="rendition:spread">portrait</meta>
-    <meta property="dcterms:modified">{modified_time_z}</meta>
+    <meta property="dcterms:modified">{modified_time}</meta>
   </metadata>
   <manifest>
     <item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>
@@ -150,12 +151,12 @@ class ePUBModel:
 {spine_items}
   </spine>
 </package>'''
-        with open("EPUB/OEBPS/content.opf", "w", encoding="utf-8") as f:
+        with open('EPUB/OEBPS/content.opf', 'w', encoding='utf-8') as f:
             f.write(content_opf)
 
-    # Write the `toc.ncx` file
     def write_toc_ncx(self, image_files, book_uuid):
-        nav_points = "\n".join([
+        """Write the `toc.ncx` file."""
+        nav_points = '\n'.join([
             f'''    <navPoint id="navPoint-{i+1}" playOrder="{i+1}">
       <navLabel><text>image{i+1}</text></navLabel>
       <content src="html/image-{i+1:04d}.html"/>
@@ -173,11 +174,12 @@ class ePUBModel:
 {nav_points}
   </navMap>
 </ncx>'''
-        with open("EPUB/OEBPS/toc.ncx", "w", encoding="utf-8") as f:
+        with open('EPUB/OEBPS/toc.ncx', 'w', encoding='utf-8') as f:
             f.write(toc_ncx)
 
     def write_nav_xhtml(self, image_files):
-        nav_items = "\n".join([
+        """Write the `nav.xhtml file.`"""
+        nav_items = '\n'.join([
             f'        <li><a href="html/image-{i+1:04d}.html">Image {i+1}</a></li>'
             for i in range(len(image_files))
         ])
@@ -198,11 +200,11 @@ class ePUBModel:
   </body>
 </html>'''
         
-        with open("EPUB/OEBPS/nav.xhtml", "w", encoding="utf-8") as f:
+        with open('EPUB/OEBPS/nav.xhtml', 'w', encoding='utf-8') as f:
             f.write(nav_xhtml)
 
-    # Copy images and create XHTML files for each image with exact dimensions
     def add_html(self, image_files):
+        """Write the `style.css` file and create an XHTML file for each image."""
         css = '''@page {
   margin: 0;
 }
@@ -213,7 +215,7 @@ body {
   padding: 0;
 }'''
 
-        with open("EPUB/OEBPS/html/style.css", "w", encoding="utf-8") as f:
+        with open('EPUB/OEBPS/html/style.css', 'w', encoding='utf-8') as f:
             f.write(css)
         
         for i, image_path in enumerate(image_files):
@@ -234,23 +236,23 @@ body {
     </div>
   </body>
 </html>'''
-            with open(f"EPUB/OEBPS/html/image-{i+1:04d}.html", "w", encoding="utf-8") as f:
+            with open(f'EPUB/OEBPS/html/image-{i+1:04d}.html', 'w', encoding='utf-8') as f:
                 f.write(html_content)
 
-    # Zip into ePUB file (leaving 'mimetype' uncompressed)
     def create_epub(self, epub_name):
-        with zipfile.ZipFile(f"{epub_name}.epub", "w") as epub:
-            epub.write("EPUB/mimetype", "mimetype", compress_type=zipfile.ZIP_STORED)
-            for root, dirs, files in os.walk("EPUB"):
+        """Zip into ePUB file while leaving `mimetype` uncompressed."""
+        with zipfile.ZipFile(f'{epub_name}.epub', 'w') as epub:
+            epub.write('EPUB/mimetype', 'mimetype', compress_type=zipfile.ZIP_STORED)
+            for root, _, files in os.walk('EPUB'):
                 for file in files:
                     filepath = os.path.join(root, file)
-                    if filepath.endswith("mimetype"):
+                    if filepath.endswith('mimetype'):
                         continue
-                    epub.write(filepath, filepath.replace("EPUB/", ""), compress_type=zipfile.ZIP_DEFLATED)
+                    epub.write(filepath, filepath.replace('EPUB/', ''), compress_type=zipfile.ZIP_DEFLATED)
 
-    # Main function to create the ePUB
     def create_image_epub(self, source_folder, reading_direction):
-        book_uuid = f"urn:uuid:{str(uuid.uuid4())}"
+        """Initiate ePUB creation and track progress."""
+        book_uuid = f'urn:uuid:{str(uuid.uuid4())}'
 
         self.create_epub_structure()
         self.progress_callback(5)
@@ -263,7 +265,7 @@ body {
         cover_extension = self.copy_images(original_image_files, reading_direction)
         self.progress_callback(50)
 
-        epub_images_path = "EPUB/OEBPS/images"
+        epub_images_path = 'EPUB/OEBPS/images'
         image_files = self.collect_images(epub_images_path)
         self.write_content_opf(image_files[1:], book_uuid, cover_extension, reading_direction)
         self.write_toc_ncx(image_files[1:], book_uuid)
@@ -276,39 +278,48 @@ body {
         self.create_epub(source_folder)
         self.progress_callback(99)
 
-        # Remove for troubleshooting
-        shutil.rmtree("EPUB")
+        # removes temporary files - comment-out for troubleshooting
+        shutil.rmtree('EPUB')
+
 
 class EPUBView:
     def __init__(self, root):
-        # Set up tkinter
         self.root = root
-        self.root.title("ePUB Converter")
+        self.root.title('ePUB Converter')
         self.root.minsize(400, 200)
         
-        # Initiate fields
         self.model = ePUBModel()
-        self.model.set_progress_callback(self.update_progress)
-        self.source_folder = ""
 
-        # Initiate UI elements
+        # create callback function by passing view method to the model
+        self.model.set_progress_callback(self.update_progress)
+
+        self.source_folder = ''
+
+        # initiate UI widgets
         self.select_source_button = Button(root, text="Source Folder", command=self.select_source_folder)
-        self.select_source_button.grid(row=0, column=0, columnspan=3, pady=20)
+        self.select_source_button.grid(row=0, column=0, columnspan=3, pady=(20,10))
 
         self.source = Label(root, text="None")
         self.source.grid(row=1, column=0, columnspan=3)
 
         self.start_button = Button(root, text="Create ePUB", command=self.start_process)
-        self.start_button.grid(row=2, column=1, pady=40)
+        self.start_button.grid(row=2, column=1, pady=(40,0))
 
         self.quit_button = Button(root, text="Quit", command=self.quit_program)
-        self.quit_button.grid(row=2, column=2, pady=40)
+        self.quit_button.grid(row=2, column=2, pady=(40,0))
 
-        # Reading direction variable used in 
-        self.reading_direction_ltr = tkinter.IntVar()
-        self.change_reading_direction = Checkbutton(root, text="Left-to-Right", variable=self.reading_direction_ltr, offvalue=0, onvalue=1)
-        self.change_reading_direction.grid(row=2, column=0, pady=40)
+        # reading direction variable used in 
+        self.reading_direction = tkinter.IntVar()
+        self.change_reading_direction = Checkbutton(root, text="Manga", variable=self.reading_direction,
+                                                    offvalue=1, onvalue=0, command=self.update_checkbutton_text)
+        self.change_reading_direction.grid(row=2, column=0, pady=(40,0))
+        self.change_reading_direction.select()
 
+        self.desc_text = tkinter.StringVar()
+        self.checkbutton_desc = Label(root, font=self.create_desc_font(), textvariable=self.desc_text)
+        self.checkbutton_desc.grid(row=3, column=0)
+        self.update_checkbutton_text()
+        
         root.grid_columnconfigure(0, weight=1)
         root.grid_columnconfigure(1, weight=1)
         root.grid_columnconfigure(2, weight=1)
@@ -316,20 +327,35 @@ class EPUBView:
         self.progress = tkinter.IntVar()
         self.progress_bar = ttk.Progressbar(variable=self.progress)
 
+    def update_checkbutton_text(self):
+        if self.reading_direction.get() == 0:
+            self.desc_text.set("right-to-left")
+        else:
+            self.desc_text.set("left-to-right")
+
     def create_italic_font(self):
         """Create a new font based on the default font but with italic slant."""
         # Retrieve the default font
         default_font = font.nametofont("TkDefaultFont")
-    
-        # Create a new font based on the default, with italic slant
         italic_font = font.Font(family=default_font.actual("family"),
                                 size=default_font.actual("size"),
                                 weight=default_font.actual("weight"),
                                 slant="italic",
                                 underline=default_font.actual("underline"),
                                 overstrike=default_font.actual("overstrike"))
-    
         return italic_font
+
+    def create_desc_font(self):
+        """Create a new font based on the default font but smol."""
+        # Retrieve the default font
+        default_font = font.nametofont("TkDefaultFont")
+        smol_font = font.Font(family=default_font.actual("family"),
+                                size=int(default_font.actual("size") // 1.2),
+                                weight=default_font.actual("weight"),
+                                slant="italic",
+                                underline=default_font.actual("underline"),
+                                overstrike=default_font.actual("overstrike"))
+        return smol_font
 
     def limit_label_length(self, label):
         if len(label) > 32:
@@ -364,7 +390,7 @@ class EPUBView:
             self.progress.set(0)
             self.progress_bar.grid(row=3, column=0, padx=0, columnspan=2)
             # Run the model's create method
-            self.model.create_image_epub(self.source_folder, self.reading_direction_ltr)
+            self.model.create_image_epub(self.source_folder, self.reading_direction)
             self.update_progress(99)
             # Sleep allows progress bar to funtion properly
             time.sleep(0.1)
@@ -385,6 +411,7 @@ class EPUBView:
     # Define 'QUIT' button
     def quit_program(self):
         self.root.destroy()
+
 
 # Start
 root = Tk()
