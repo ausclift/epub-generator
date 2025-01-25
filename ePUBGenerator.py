@@ -1,5 +1,5 @@
 import os, threading, time, zipfile, shutil, uuid, tkinter
-from tkinter import Tk, ttk, Label, Button, filedialog, messagebox, font, Checkbutton, Text
+from tkinter import Tk, ttk, Label, Button, filedialog, messagebox, font, Checkbutton
 from datetime import datetime, timezone
 from PIL import Image
 from natsort import natsorted
@@ -79,7 +79,7 @@ class ePUBModel:
 
                 # save extension of cover
                 if i == 0:
-                    shutil.copy(image_path, 'EPUB/OEBPS/images/cover{file_extension}')
+                    shutil.copy(image_path, f'EPUB/OEBPS/images/cover{file_extension}')
                     cover_extension = file_extension
                 
             # case for spreads
@@ -296,21 +296,18 @@ class EPUBView:
         self.source_folder = ''
 
         # initiate UI widgets
-        self.select_source_button = Button(root, text="Source Folder", command=self.select_source_folder)
-        self.select_source_button.grid(row=0, column=0, columnspan=3, pady=(20,10))
+        self.select_source_button = Button(root, text='Source Folder', command=self.select_source_folder)
+        self.select_source_button.grid(row=0, column=0, columnspan=2, pady=(20,10))
 
-        self.source = Label(root, text="None")
-        self.source.grid(row=1, column=0, columnspan=3)
+        self.source = Label(root, text='None')
+        self.source.grid(row=1, column=0, columnspan=2)
 
-        self.start_button = Button(root, text="Create ePUB", command=self.start_process)
+        self.start_button = Button(root, text='Create ePUB', command=self.start_process)
         self.start_button.grid(row=2, column=1, pady=(40,0))
-
-        self.quit_button = Button(root, text="Quit", command=self.quit_program)
-        self.quit_button.grid(row=2, column=2, pady=(40,0))
 
         # reading direction variable used in 
         self.reading_direction = tkinter.IntVar()
-        self.change_reading_direction = Checkbutton(root, text="Manga", variable=self.reading_direction,
+        self.change_reading_direction = Checkbutton(root, text='Manga', variable=self.reading_direction,
                                                     offvalue=1, onvalue=0, command=self.update_checkbutton_text)
         self.change_reading_direction.grid(row=2, column=0, pady=(40,0))
         self.change_reading_direction.select()
@@ -322,98 +319,92 @@ class EPUBView:
         
         root.grid_columnconfigure(0, weight=1)
         root.grid_columnconfigure(1, weight=1)
-        root.grid_columnconfigure(2, weight=1)
 
         self.progress = tkinter.IntVar()
         self.progress_bar = ttk.Progressbar(variable=self.progress)
 
     def update_checkbutton_text(self):
+        """Update checkbutton text based on the current reading direction."""
         if self.reading_direction.get() == 0:
-            self.desc_text.set("right-to-left")
+            self.desc_text.set('right-to-left')
         else:
-            self.desc_text.set("left-to-right")
+            self.desc_text.set('left-to-right')
 
     def create_italic_font(self):
         """Create a new font based on the default font but with italic slant."""
-        # Retrieve the default font
-        default_font = font.nametofont("TkDefaultFont")
-        italic_font = font.Font(family=default_font.actual("family"),
-                                size=default_font.actual("size"),
-                                weight=default_font.actual("weight"),
-                                slant="italic",
-                                underline=default_font.actual("underline"),
-                                overstrike=default_font.actual("overstrike"))
+        default_font = font.nametofont('TkDefaultFont')
+        italic_font = font.Font(family=default_font.actual('family'),
+                                size=default_font.actual('size'),
+                                weight=default_font.actual('weight'),
+                                slant='italic',
+                                underline=default_font.actual('underline'),
+                                overstrike=default_font.actual('overstrike'))
         return italic_font
 
     def create_desc_font(self):
         """Create a new font based on the default font but smol."""
-        # Retrieve the default font
-        default_font = font.nametofont("TkDefaultFont")
-        smol_font = font.Font(family=default_font.actual("family"),
-                                size=int(default_font.actual("size") // 1.2),
-                                weight=default_font.actual("weight"),
-                                slant="italic",
-                                underline=default_font.actual("underline"),
-                                overstrike=default_font.actual("overstrike"))
+        default_font = font.nametofont('TkDefaultFont')
+        smol_font = font.Font(family=default_font.actual('family'),
+                                size=int(default_font.actual('size') // 1.2),
+                                weight=default_font.actual('weight'),
+                                slant='italic',
+                                underline=default_font.actual('underline'),
+                                overstrike=default_font.actual('overstrike'))
         return smol_font
 
     def limit_label_length(self, label):
+        """Limit length of the label to 32 characters."""
         if len(label) > 32:
             label = label[:32] + '...'
         return label
 
-    # Define 'SELECT SOURCE' button
     def select_source_folder(self):
-        self.source_folder = filedialog.askdirectory(title="Select Source Folder")
+        """Define `SOURCE FOLDER` button."""
+        self.source_folder = filedialog.askdirectory(title='Select Source Folder')
         if self.source_folder:
             italic_font = self.create_italic_font()
-            self.source.config(text=f"{self.limit_label_length(os.path.basename(self.source_folder))}", font=italic_font)
+            self.source.config(text=f'{self.limit_label_length(os.path.basename(self.source_folder))}', font=italic_font)
 
-    # Define 'START' button
     def start_process(self):
+        """Define `CREATE ePUB` button."""
         if not self.source_folder:
-            messagebox.showwarning("Input Required", "Please select a source folder.")
+            messagebox.showwarning('Input Required', 'Please select a source folder.')
         else:
-            # Disable buttons (reenabled in 'create_epub()')
-            self.select_source_button.config(state="disabled")
-            self.start_button.config(state="disabled")
-            self.change_reading_direction.config(state="disabled")
+            # disable buttons (reenabled in `create_epub()`)
+            self.select_source_button.config(state='disabled')
+            self.start_button.config(state='disabled')
+            self.change_reading_direction.config(state='disabled')
 
             threading.Thread(target=self.create_epub).start()
             
     def update_progress(self, prog):
+        """Update progress bar. Called by the model."""
         self.progress.set(prog)
         
     def create_epub(self):
-
+        """Create ePUB file by invoking the model."""
         try:
             self.progress.set(0)
             self.progress_bar.grid(row=3, column=0, padx=0, columnspan=2)
-            # Run the model's create method
             self.model.create_image_epub(self.source_folder, self.reading_direction)
             self.update_progress(99)
-            # Sleep allows progress bar to funtion properly
+            # sleep allows progress bar to funtion properly
             time.sleep(0.1)
-            messagebox.showinfo("Success", "ePUB created!")
+            messagebox.showinfo('Success', 'ePUB created!')
             
         except Exception as e:
-            messagebox.showerror("Error", str(e))
+            messagebox.showerror('Error', str(e))
 
         finally:
-            # Enable buttons (disabled in 'start_process()')
-            self.select_source_button.config(state="normal")
-            self.start_button.config(state="normal")
-            self.change_reading_direction.config(state="normal")
+            # reenable buttons (disabled in `start_process()`)
+            self.select_source_button.config(state='normal')
+            self.start_button.config(state='normal')
+            self.change_reading_direction.config(state='normal')
 
         self.progress_bar.grid_remove()
-        
-
-    # Define 'QUIT' button
-    def quit_program(self):
-        self.root.destroy()
 
 
-# Start
+# start application
 root = Tk()
 app = EPUBView(root)
 root.mainloop()
