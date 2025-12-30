@@ -1,17 +1,22 @@
 from setuptools import setup
 
-APP = ['ePUBGenerator.py']
-DATA_FILES = ['icon.jpg']
+APP = ['ePUBNeko.py']
+OPTIONS = {
+    'packages': ['PIL', 'natsort'],
+    'excludes': ['numpy', 'tkinter.test', 'PIL.tests', 'unittest'],
+    'iconfile': 'icon.png',
+    'includes': ['os', 'threading', 'time', 'zipfile', 'shutil', 'uuid', 'tkinter', 'datetime', 'pathlib'],
+    'plist': {
+        'CFBundleName': 'ePUB Neko',
+        'CFBundleDisplayName': 'ePUB Neko',
+        'CFBundleIdentifier': 'com.heathx.epubneko',
+        'CFBundleVersion': '1.0.0',
+        'CFBundleShortVersionString': '1.0.0',
+    },
+}
 
 setup(
     app=APP,
-    data_files=DATA_FILES,
+    options={'py2app': OPTIONS},
     setup_requires=['py2app'],
-    options={
-        'py2app': {
-            'iconfile': 'icon.jpg',
-            'packages': ['PIL', 'natsort'],
-            'excludes': ['numpy', 'tkinter.test', 'PIL.tests', 'unittest'],
-        }
-    },
 )
