@@ -341,7 +341,7 @@ body {
 class EPUBView:
 
     def __init__(self, root):
-        root.title('ePUB Converter')
+        root.title('ePUB Neko')
         root.minsize(400, 200)
         root.grid_columnconfigure(0, weight=1)
         root.grid_columnconfigure(1, weight=1)
