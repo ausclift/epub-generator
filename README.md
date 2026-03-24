@@ -1,21 +1,28 @@
 # ePUB Generator
 
 ePUB Generator is an application for Mac OS that converts a folder of images to an ePUB file. A distributable can be generated using py2app:
-1. Install required packages (py2app, Pillow, natsort)
-2. Use the command '$ python setup.py py2app' to create the application file
-* If on silicon Mac with Conda installed, py2app cannot create distributable, but alias mode still works: '$ python setup.py py2app -A'
+1. Install the required packages (py2app, Pillow, natsort)
+2. Use the command '$ python setup.py py2app' to create the application
+* A known issue on ARM OS with Conda installed: py2app cannot create a distributable, but alias mode still works '$ python setup.py py2app -A'
+* Support for py2app may end as early as 2025-11-30 and alteratives are being considered
 
 ## Functionality
 
-The application converts a folder of images into a manga-style ePUB.  It can accommodate .jpg, .png, and .webp images. Spreads (a "landscape" image) are automatically split. If the first image is a spread, it is assumed to be the cover of the book. When generating a manga-style ePUB, the left side of the spread is used as the first page and the right side (back cover) is not preserved. This is reversed in the case of generating a comic-style ePUB.
+The application converts a folder of images into a manga-style ePUB.  It can accommodate .jpg, .png, and .webp images. To ensure compatibility with older devices, .webp images are converted to .png. Spreads (a "landscape" image) are automatically split. If the first image is a spread, it is assumed to be the cover of the book; when generating a manga-style ePUB, the left side of the spread is used as the first page and the right side (back cover) is not preserved. This is reversed in the case of generating a comic-style ePUB.
+
+To fully uninstall the program, simple delete the application file. If applicable, remove the .nekoconfig.json file which generates in /User.
 
 ## TODO
 
-- error handling
-- custom graphics
-- preview feature to view a small version of the resulting ebook
+- Improve UI (layout/color)
+- Better progress bar tracking
 
 ## Changelog
+
+Mar 23, 2026
+- Refactored font-handling functions
+- Fixed title metadata to use folder name
+- Added author metadata
 
 Dec 27, 2025
 - .webp images are now converted to .png for better compatibility (this increases processing time and file size for .webp ePUBs)

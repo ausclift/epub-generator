@@ -111,8 +111,10 @@ class ePUBModel:
 
         return cover_extension[1:]  # return without dot
 
-    def write_content_opf(self, image_files, book_uuid, cover_extension, reading_direction):
+    def write_content_opf(self, image_files, book_uuid, cover_extension, reading_direction, folder_name):
         """Write the `content.opf` file including page-progression-direction metadata."""
+        book_title = Path(folder_name).name
+
         time = datetime.now(timezone.utc).isoformat(timespec='seconds')
         time = time.replace('+00:00', 'Z')
 
@@ -130,7 +132,8 @@ class ePUBModel:
         content_opf = f'''<?xml version="1.0" encoding="UTF-8"?>
 <package xmlns="http://www.idpf.org/2007/opf" unique-identifier="bookid" version="3.0">
   <metadata xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:rendition="http://www.idpf.org/2013/rendition">
-    <dc:title>ePUB</dc:title>
+    <dc:title>{book_title}</dc:title>
+    <dc:creator>ePUB Neko</dc:creator>
     <dc:language>en</dc:language>
     <dc:identifier id="bookid">{book_uuid}</dc:identifier>
     <meta property="rendition:layout">pre-paginated</meta>
@@ -322,7 +325,7 @@ body {
 
         epub_images_path = 'EPUB/OEBPS/images'
         image_files = self.collect_images(epub_images_path)
-        self.write_content_opf(image_files[1:], book_uuid, cover_extension, reading_direction)
+        self.write_content_opf(image_files[1:], book_uuid, cover_extension, reading_direction, source_folder)
         self.write_toc_ncx(image_files[1:], book_uuid)
         self.write_nav_xhtml(image_files[1:])
         self.write_css_file()
@@ -372,7 +375,7 @@ class EPUBView:
 
         # reading direction label
         self.desc_text = tkinter.StringVar()
-        self.checkbutton_desc = Label(root, font=self.create_desc_font(), textvariable=self.desc_text)
+        self.checkbutton_desc = Label(root, font=self.italic_font(0.8), textvariable=self.desc_text)
         self.checkbutton_desc.grid(row=3, column=0)
         self.update_checkbutton_text()
 
@@ -403,28 +406,17 @@ class EPUBView:
             self.desc_text.set('right-to-left')
         else:
             self.desc_text.set('left-to-right')
-
-    def create_italic_font(self):
+    
+    def italic_font(self, size=1.0):
         """Create a new font based on the default font but with italic slant."""
         default_font = font.nametofont('TkDefaultFont')
         italic_font = font.Font(family=default_font.actual('family'),
-                                size=default_font.actual('size'),
+                                size=int(default_font.actual('size') * size),
                                 weight=default_font.actual('weight'),
                                 slant='italic',
                                 underline=default_font.actual('underline'),
                                 overstrike=default_font.actual('overstrike'))
         return italic_font
-
-    def create_desc_font(self):
-        """Create a new font based on the default font but smol."""
-        default_font = font.nametofont('TkDefaultFont')
-        smol_font = font.Font(family=default_font.actual('family'),
-                                size=int(default_font.actual('size') // 1.2),
-                                weight=default_font.actual('weight'),
-                                slant='italic',
-                                underline=default_font.actual('underline'),
-                                overstrike=default_font.actual('overstrike'))
-        return smol_font
 
     def limit_label_length(self, label):
         """Limit length of the label to 32 characters."""
@@ -442,8 +434,7 @@ class EPUBView:
             # persist last accessed folder
             self.save_last_folder()
             
-            italic_font = self.create_italic_font()
-            self.source.config(text=f'{self.limit_label_length(os.path.basename(self.source_folder))}', font=italic_font)
+            self.source.config(text=f'{self.limit_label_length(os.path.basename(self.source_folder))}', font=self.italic_font())
 
         root.focus_force()
 
