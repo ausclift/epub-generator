@@ -2,8 +2,8 @@
 
 ePUB Generator is an application for Mac OS that converts a folder of images to an ePUB file. A distributable can be generated using py2app:
 1. Install the required packages (py2app, Pillow, natsort)
-2. Use the command '$ python setup.py py2app' to create the application
-* A known issue on ARM OS with Conda installed: py2app cannot create a distributable, but alias mode still works '$ python setup.py py2app -A'
+2. Use the command `$ python setup.py py2app` to create the application
+* A known issue on ARM OS with Conda installed: py2app cannot create a distributable, but alias mode still works `$ python setup.py py2app -A`
 * Support for py2app may end as early as 2025-11-30 and alteratives are being considered
 
 ## Functionality
