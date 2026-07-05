@@ -1,5 +1,5 @@
-import os, threading, time, zipfile, shutil, uuid, tkinter, json
-from tkinter import Tk, ttk, Label, Button, filedialog, messagebox, font, Checkbutton
+import os, threading, zipfile, shutil, uuid, json
+from tkinter import Tk, ttk, Label, Button, filedialog, messagebox, font, Checkbutton, Radiobutton, StringVar, IntVar, Frame
 from datetime import datetime, timezone
 from PIL import Image
 from natsort import natsorted
@@ -55,63 +55,84 @@ class ePUBModel:
         with open('EPUB/META-INF/container.xml', 'w', encoding='utf-8') as f:
             f.write(container_content)
 
-    def copy_images(self, image_files, reading_direction):
+    def copy_images(self, image_files, read_order, loss_mode):
         """Copy and rename source images into `images` directory."""
-        ltr = reading_direction.get()
+        ltr = read_order.get()
+        mode = loss_mode.get()
+
         cover_extension = ''
+
         for i, image_path in enumerate(image_files):
             image_filename = f'image-{i+1:04d}'
             _, ext = os.path.splitext(image_path)
             ext = ext.lower()
-            if ext in {'.jpg', '.jpeg'}:
-                out_extension = '.jpeg'
-            elif ext in {'.png', '.webp'}:
-                out_extension = '.png'
-            else:
+
+            if ext not in {'.jpg', '.jpeg', '.png', '.webp'}:
                 continue
 
+            # determine output format
+            if mode == "lossless":
+                out_extension = ".png"
+            else:
+                if ext in {'.jpg', '.jpeg'}:
+                    out_extension = ".jpeg"
+                else:
+                    out_extension = ".png"
+
             with Image.open(image_path) as img:
-                # convert webp to png
-                if ext == '.webp':
+
+                if ext == ".webp":
                     img = img.convert("RGBA")
                 else:
                     img = img.copy()
+
                 width, height = img.size
+
+                def save_img(im, path):
+                    if mode == "ultra" and path.endswith(".jpeg"):
+                        im.save(path, quality=90, optimize=True)
+                    else:
+                        im.save(path)
 
                 # portrait / single page
                 if width <= height:
                     out_path = f'EPUB/OEBPS/images/{image_filename}{out_extension}'
-                    img.save(out_path)
+                    save_img(img, out_path)
 
                     if i == 0:
                         cover_path = f'EPUB/OEBPS/images/cover{out_extension}'
-                        img.save(cover_path)
+                        save_img(img, cover_path)
                         cover_extension = out_extension
 
                 # landscape / spread
                 else:
                     mid_x = width // 2
-                    left_path = f"EPUB/OEBPS/images/{image_filename}-{'B' if ltr == 0 else 'A'}{out_extension}"
-                    right_path = f"EPUB/OEBPS/images/{image_filename}-{'A' if ltr == 0 else 'B'}{out_extension}"
+
+                    left_label = 'B' if ltr == 0 else 'A'
+                    right_label = 'A' if ltr == 0 else 'B'
+
+                    left_path = f"EPUB/OEBPS/images/{image_filename}-{left_label}{out_extension}"
+                    right_path = f"EPUB/OEBPS/images/{image_filename}-{right_label}{out_extension}"
+
                     if i != 0:
-                        # crop left and right pages
                         img.crop((0, 0, mid_x, height)).save(left_path)
                         img.crop((mid_x + 1, 0, width, height)).save(right_path)
+
                     else:
-                        # first image also sets cover
                         if ltr == 0:
                             left_crop = img.crop((0, 0, mid_x, height))
-                            left_crop.save(left_path)
-                            left_crop.save(f'EPUB/OEBPS/images/cover{out_extension}')
+                            save_img(left_crop, left_path)
+                            save_img(left_crop, f'EPUB/OEBPS/images/cover{out_extension}')
                         else:
                             right_crop = img.crop((mid_x + 1, 0, width, height))
-                            right_crop.save(right_path)
-                            right_crop.save(f'EPUB/OEBPS/images/cover{out_extension}')
+                            save_img(right_crop, right_path)
+                            save_img(right_crop, f'EPUB/OEBPS/images/cover{out_extension}')
+
                         cover_extension = out_extension
 
-        return cover_extension[1:]  # return without dot
+        return cover_extension[1:] # strip dot from extension for media-type
 
-    def write_content_opf(self, image_files, book_uuid, cover_extension, reading_direction, folder_name):
+    def write_content_opf(self, image_files, book_uuid, cover_extension, read_order, folder_name):
         """Write the `content.opf` file including page-progression-direction metadata."""
         book_title = Path(folder_name).name
 
@@ -148,7 +169,7 @@ class ePUBModel:
     <item id="cover-image" href="images/cover.{cover_extension}" media-type="image/{cover_extension}" properties="cover-image"/>
 {manifest_items}
   </manifest>
-  <spine toc="ncx" page-progression-direction="{'rtl' if reading_direction.get() == 0 else 'ltr'}">
+  <spine toc="ncx" page-progression-direction="{'rtl' if read_order.get() == 0 else 'ltr'}">
 {spine_items}
   </spine>
 </package>'''
@@ -309,7 +330,7 @@ body {
 
         return new_width, new_height
 
-    def create_image_epub(self, source_folder, reading_direction):
+    def create_image_epub(self, source_folder, loss_mode, read_order):
         """Initiate ePUB creation and track progress."""
         book_uuid = f'urn:uuid:{str(uuid.uuid4())}'
         self.create_epub_structure()
@@ -320,18 +341,18 @@ body {
         original_image_files = self.collect_images(source_folder)
         self.progress_callback(10)
 
-        cover_extension = self.copy_images(original_image_files, reading_direction)
+        cover_extension = self.copy_images(original_image_files, read_order, loss_mode)
         self.progress_callback(50)
 
         epub_images_path = 'EPUB/OEBPS/images'
         image_files = self.collect_images(epub_images_path)
-        self.write_content_opf(image_files[1:], book_uuid, cover_extension, reading_direction, source_folder)
+        self.write_content_opf(image_files[1:], book_uuid, cover_extension, read_order, source_folder)
         self.write_toc_ncx(image_files[1:], book_uuid)
         self.write_nav_xhtml(image_files[1:])
         self.write_css_file()
         self.progress_callback(55)
 
-        self.add_html(image_files[1:], reading_direction)
+        self.add_html(image_files[1:], read_order)
         self.progress_callback(60)
 
         self.create_epub(source_folder)
@@ -344,10 +365,12 @@ body {
 class EPUBView:
 
     def __init__(self, root):
+        self.root = root
         root.title('ePUB Neko')
-        root.minsize(400, 200)
-        root.grid_columnconfigure(0, weight=1)
-        root.grid_columnconfigure(1, weight=1)
+        root.minsize(400, 300)
+        root.grid_columnconfigure(0, weight=1, uniform="cols")
+        root.grid_columnconfigure(1, weight=1, uniform="cols")
+        root.grid_columnconfigure(2, weight=1, uniform="cols")
 
         # set model and create callback function by passing method to the model
         self.model = ePUBModel()
@@ -356,34 +379,75 @@ class EPUBView:
         # source folder button
         self.source_folder = ''
         self.select_source_button = Button(root, text='Source Folder', command=self.select_source_folder)
-        self.select_source_button.grid(row=0, column=0, columnspan=2, pady=(20,10))
+        self.select_source_button.grid(row=0, column=0, columnspan=3, pady=(10,10))
 
         # source folder label
         self.source = Label(root, text='None')
-        self.source.grid(row=1, column=0, columnspan=2)
+        self.source.grid(row=1, column=0, columnspan=3)
+
+        # loss mode title
+        self.loss_title = Label(root, text='Quality')
+        self.loss_title.grid(row=2, column=0, pady=(20, 0))
+
+        # loss mode selector
+        self.loss_mode = StringVar(value="ultra")
+        self.loss_frame = Frame(root)
+        self.loss_frame.grid(row=3, column=0)
+        self.loss_high = Radiobutton(self.loss_frame, text="High", variable=self.loss_mode, value="high", command=self.update_loss_text)
+        self.loss_ultra = Radiobutton(self.loss_frame, text="Ultra", variable=self.loss_mode, value="ultra", command=self.update_loss_text)
+        self.loss_lossless = Radiobutton(self.loss_frame, text="Lossless", variable=self.loss_mode, value="lossless", command=self.update_loss_text)
+        self.loss_high.pack(anchor="w")
+        self.loss_ultra.pack(anchor="w")
+        self.loss_lossless.pack(anchor="w")
+
+        # loss mode label
+        self.loss_label = StringVar()
+        self.loss_desc = Label(root, font=self.italic_font(0.8), textvariable=self.loss_label)
+        self.loss_desc.grid(row=4, column=0)
+        self.update_loss_text()
+
+        # reading direction title
+        self.direction_title = Label(root, text='Layout')
+        self.direction_title.grid(row=2, column=1, pady=(20, 0))
+
+        # reading direction checkbox 
+        self.read_order = IntVar()
+        self.read_order_checkbox = Checkbutton(root, text='Manga', variable=self.read_order, offvalue=1, onvalue=0, command=self.update_direction_text)
+        self.read_order_checkbox.grid(row=3, column=1)
+        self.read_order_checkbox.select()
+
+        # reading direction label
+        self.direction_label = StringVar()
+        self.direction_desc = Label(root, font=self.italic_font(0.8), textvariable=self.direction_label)
+        self.direction_desc.grid(row=4, column=1)
+        self.update_direction_text()
+
+        # placeholder title
+        self.loss_title = Label(root, text='Placeholder')
+        self.loss_title.grid(row=2, column=2, pady=(20, 0))
+
+        # placeholder label
+        self.loss_desc = Label(root, text='placeholder', font=self.italic_font(0.8))
+        self.loss_desc.grid(row=4, column=2)
 
         # create ePUB button
         self.start_button = Button(root, text='Create ePUB', command=self.start_process)
-        self.start_button.grid(row=2, column=1, pady=(40,0))
-
-        # reading direction checkbox 
-        self.reading_direction = tkinter.IntVar()
-        self.change_reading_direction = Checkbutton(root, text='Manga', variable=self.reading_direction,
-                                                    offvalue=1, onvalue=0, command=self.update_checkbutton_text)
-        self.change_reading_direction.grid(row=2, column=0, pady=(40,0))
-        self.change_reading_direction.select()
-
-        # reading direction label
-        self.desc_text = tkinter.StringVar()
-        self.checkbutton_desc = Label(root, font=self.italic_font(0.8), textvariable=self.desc_text)
-        self.checkbutton_desc.grid(row=3, column=0)
-        self.update_checkbutton_text()
+        self.start_button.grid(row=5, column=0, columnspan=3, pady=(20,0))
 
         # progress bar
-        self.progress = tkinter.IntVar()
+        self.progress = IntVar()
         self.progress_bar = ttk.Progressbar(variable=self.progress)
 
         root.focus_force()
+
+    def enable_wigets(self, enabled: bool):
+        state = "normal" if enabled else "disabled"
+        self.loss_high.config(state=state)
+        self.loss_ultra.config(state=state)
+        self.loss_lossless.config(state=state)
+        self.select_source_button.config(state=state)
+        self.start_button.config(state=state)
+        self.read_order_checkbox.config(state=state)
     
     def save_last_folder(self):
         config = {"last_folder": os.path.dirname(self.source_folder)}
@@ -399,13 +463,22 @@ class EPUBView:
             except Exception:
                 return ""
         return ""
+    
+    def update_loss_text(self):
+        mode = self.loss_mode.get()
+        if mode == "high":
+            self.loss_label.set("75% quality JPGs")
+        elif mode == "ultra":
+            self.loss_label.set("90% quality JPGs")
+        elif mode == "lossless":
+            self.loss_label.set("convert to PNGs")
 
-    def update_checkbutton_text(self):
+    def update_direction_text(self):
         """Update checkbutton label based on the current reading direction."""
-        if self.reading_direction.get() == 0:
-            self.desc_text.set('right-to-left')
+        if self.read_order.get() == 0:
+            self.direction_label.set('right-to-left')
         else:
-            self.desc_text.set('left-to-right')
+            self.direction_label.set('left-to-right')
     
     def italic_font(self, size=1.0):
         """Create a new font based on the default font but with italic slant."""
@@ -419,9 +492,9 @@ class EPUBView:
         return italic_font
 
     def limit_label_length(self, label):
-        """Limit length of the label to 32 characters."""
-        if len(label) > 32:
-            label = label[:32] + '...'
+        """Limit length of the label to 48 characters."""
+        if len(label) > 48:
+            label = label[:48] + '...'
 
         return label
 
@@ -444,10 +517,7 @@ class EPUBView:
             messagebox.showwarning('Input Required', 'Please select a source folder.')
 
         else:
-            # disable buttons - reenabled in `create_epub()`
-            self.select_source_button.config(state='disabled')
-            self.start_button.config(state='disabled')
-            self.change_reading_direction.config(state='disabled')
+            self.enable_wigets(False)
 
             threading.Thread(target=self.create_epub).start()
             
@@ -458,12 +528,9 @@ class EPUBView:
     def create_epub(self):
         """Create ePUB file by invoking the model."""
         try:
-            self.progress_bar.grid(row=3, column=0, padx=0, columnspan=2)
+            self.progress_bar.grid(row=6, column=0, padx=20, columnspan=3, sticky="ew")
 
-            self.model.create_image_epub(self.source_folder, self.reading_direction)
-
-            # sleep allows progress bar to funtion properly
-            time.sleep(0.1)
+            self.model.create_image_epub(self.source_folder, self.loss_mode, self.read_order)
 
             messagebox.showinfo('Success', 'ePUB created!')
 
@@ -471,16 +538,13 @@ class EPUBView:
             messagebox.showerror('Error', str(e))
 
         finally:
-            self.progress_bar.grid_remove()
             self.progress.set(0)
-
-            # reenable buttons - disabled in `start_process()`
-            self.select_source_button.config(state='normal')
-            self.start_button.config(state='normal')
-            self.change_reading_direction.config(state='normal')
+            self.root.update_idletasks()
+            self.progress_bar.grid_forget()
+            self.root.event_generate("<Expose>")
+            self.enable_wigets(True)
             
         root.focus_force()
-
 
 # run application
 root = Tk()
