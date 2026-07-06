@@ -8,7 +8,7 @@ ePUB Generator is an application for Mac OS that converts a folder of images to 
 
 ## Functionality
 
-The application converts a folder of images into a manga-style ePUB.  It can accommodate .jpg, .png, and .webp images. To ensure compatibility with older devices, .webp images are converted to .png. Spreads (a "landscape" image) are automatically split. If the first image is a spread, it is assumed to be the cover of the book; when generating a manga-style ePUB, the left side of the spread is used as the first page and the right side (back cover) is not preserved. This is reversed in the case of generating a comic-style ePUB.
+The application converts a folder of images into a manga-style ePUB.  It can accommodate .jpg, .png, and .webp images. To ensure compatibility with older devices, WEBP images are converted to PNGs. Spreads (width > height) are automatically split. If the first image is a spread, it is assumed to be the front and back cover of the book. In this case only the front cover is preserved, determined based on the selected reading direction.
 
 To fully uninstall the program, simply delete the application file. If applicable, remove the .nekoconfig.json file which generates in /User.
 
@@ -20,9 +20,14 @@ To fully uninstall the program, simply delete the application file. If applicabl
 
 ## Changelog
 
+Jul 6, 2026
+- Began complete refactor: organizing codebase into more folders, files, and classes.
+- Now should excusively use pathlib
+- Fixed bug that caused any previously selected folder to be internally removed when hitting "cancel"
+
 Jul 4, 2026
 - Added quality options for 75%, 90%, and lossless
-- Fixed progress bar
+- Fixed progress bar not updating properly
 
 Mar 23, 2026
 - Refactored font-handling functions
