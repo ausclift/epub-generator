@@ -13,8 +13,9 @@ class View:
         root.grid_columnconfigure(1, weight=1, uniform="cols")
         root.grid_columnconfigure(2, weight=1, uniform="cols")
 
-        # create callback function by passing method to the model
+        # create callback functions by passing method to the model
         self.model.set_progress_callback(self.update_progress)
+        self.model.set_progress_desc_callback(self.update_progress_desc)
 
         # source folder button
         self.source_folder = ''
@@ -62,21 +63,17 @@ class View:
         self.direction_desc.grid(row=4, column=1)
         self.update_direction_text()
 
-        # placeholder title
-        self.loss_title = Label(root, text='Placeholder')
-        self.loss_title.grid(row=2, column=2, pady=(20, 0))
-
-        # placeholder label
-        self.loss_desc = Label(root, text='placeholder', font=self.italic_font(0.8))
-        self.loss_desc.grid(row=4, column=2)
-
         # create ePUB button
         self.start_button = Button(root, text='Create ePUB', command=self.start_process)
-        self.start_button.grid(row=5, column=0, columnspan=3, pady=(20,0))
+        self.start_button.grid(row=3, column=2)
 
         # progress bar
         self.progress = IntVar()
         self.progress_bar = ttk.Progressbar(variable=self.progress)
+        
+        # progress label
+        self.progress_desc = Label(root, text='', font=self.italic_font(0.8))
+        self.progress_desc.grid(row=6, column=0, columnspan=3, pady=(0, 20))
 
         root.focus_force()
 
@@ -166,11 +163,15 @@ class View:
     def update_progress(self, prog):
         """Update progress bar. Called by the model."""
         self.progress.set(prog)
+
+    def update_progress_desc(self, text):
+        """Update progress description label. Called by the model."""
+        self.progress_desc.config(text=text)
         
     def create_epub(self):
         """Create ePUB file by invoking the model."""
         try:
-            self.progress_bar.grid(row=6, column=0, padx=20, columnspan=3, sticky="ew")
+            self.progress_bar.grid(row=5, column=0, padx=20, pady=(20, 0), columnspan=3, sticky="ew")
 
             self.model.create_image_epub(self.source_folder, self.loss_mode.get(), self.read_order.get())
 
@@ -181,6 +182,7 @@ class View:
 
         finally:
             self.progress.set(0)
+            self.progress_desc.config(text='')
             self.root.update_idletasks()
             self.progress_bar.grid_forget()
             self.root.event_generate("<Expose>")
