@@ -14,9 +14,9 @@ To fully uninstall the program, simply delete the application file. If applicabl
 
 ## TODO
 
-- Better progress bar tracking (variable that updates every 5%-10% of images saved/copied)
-- Store selected quality/layout options in .nekoconfig.json
-- Check error handling (when image folder is deleted after selected, etc.)
+- Progress bar tracking for HTML writing
+- Store last selected options in .nekoconfig.json
+- Test/check error handling
 
 ## Changelog
 
