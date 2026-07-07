@@ -1,24 +1,37 @@
 # ePUB Generator
 
 ePUB Generator is an application for Mac OS that converts a folder of images to an ePUB file. A distributable can be generated using py2app:
-1. Install the required packages (py2app, Pillow, natsort)
-2. Use the command `$ python setup.py py2app` to create the application
-* A known issue on ARM OS with Conda installed: py2app cannot create a distributable, but alias mode still works `$ python setup.py py2app -A`
-* Support for py2app may end as early as 2025-11-30 and alteratives are being considered
+
+1. Install the required packages with `pip install Pillow` and `pip install natsort`
+2. Install Nuitka with `$ pip install nuitka ordered-set zstandard`
+3. Use the following command to create the application:
+``` 
+$ python -m nuitka \
+    --standalone \
+    --macos-create-app-bundle \
+    --enable-plugin=tk-inter \
+    --macos-app-name="ePUB Neko" \
+    --macos-app-icon=icon.icns \
+    --output-dir=dist \
+    ePUBNeko.py
+```
 
 ## Functionality
-
 The application converts a folder of images into a manga-style ePUB.  It can accommodate .jpg, .png, and .webp images. To ensure compatibility with older devices, WEBP images are converted to PNGs. Spreads (width > height) are automatically split. If the first image is a spread, it is assumed to be the front and back cover of the book. In this case only the front cover is preserved, determined based on the selected reading direction.
 
 To fully uninstall the program, simply delete the application file. If applicable, remove the .nekoconfig.json file which generates in /User.
 
 ## TODO
 
-- Progress bar tracking for HTML writing
 - Store last selected options in .nekoconfig.json
 - Test/check error handling
+- Better UI
 
 ## Changelog
+
+Jul 7, 2026
+- Now using Nuitka instead of py2app for packaging, see updated instructions
+- New build is ~36% smaller (53 mb) and 15-20% more efficient
 
 Jul 6, 2026
 - Began complete refactor: organizing codebase into more folders, files, and classes.
