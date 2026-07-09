@@ -20,8 +20,10 @@ class WriteFiles:
   def write_mimetype():
     """Write the `mimetype` file that defines the folder structure as an ePUB."""
 
+    mimetype_content = 'application/epub+zip'
+
     with open(Paths.MIM, 'w') as f:
-      f.write('application/epub+zip')
+      f.write(mimetype_content)
 
 
   def write_container_xml():
@@ -33,23 +35,30 @@ class WriteFiles:
     <rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/>
   </rootfiles>
 </container>'''
+
     with open(Paths.META / 'container.xml', 'w', encoding='utf-8') as f:
       f.write(container_content)
 
 
-  def write_content_opf(image_paths, book_uuid, cover_extension, read_order, folder_name):
+  def write_content_opf(image_paths, book_uuid, read_order, folder_name):
     """Write the `content.opf` file including page-progression-direction metadata."""
 
-    book_title = Path(folder_name).name
+    MIME_TYPES = {
+      ".jpg": "image/jpeg",
+      ".jpeg": "image/jpeg",
+      ".png": "image/png",
+      ".webp": "image/webp",
+    }
 
+    book_title = Path(folder_name).name
     time = datetime.now(timezone.utc).isoformat(timespec='seconds')
     time = time.replace('+00:00', 'Z')
 
-    manifest_items = '\n'.join([
-      f'    <item id="img{i+1}" href="{image_paths[i][11:]}" media-type="image/{os.path.splitext(image_paths[i])[1][1:]}" />\n'
-      f'    <item id="xhtml{i+1}" href="html/image-{i+1:04d}.xhtml" media-type="application/xhtml+xml"/>'
+    manifest_items = '\n'.join(
+      f'''    <item id="img{i+1}" href="{image_paths[i][11:]}" media-type="{MIME_TYPES[Path(image_paths[i]).suffix.lower()]}"{' properties="cover-image"' if i == 0 else ''}/>
+    <item id="xhtml{i+1}" href="html/image-{i+1:04d}.xhtml" media-type="application/xhtml+xml"/>'''
       for i in range(len(image_paths))
-    ])
+    )
 
     spine_items = '\n'.join([
       f'    <itemref idref="xhtml{i+1}"/>'
@@ -63,6 +72,7 @@ class WriteFiles:
     <dc:creator>ePUB Neko</dc:creator>
     <dc:language>en</dc:language>
     <dc:identifier id="bookid">{book_uuid}</dc:identifier>
+    <meta name="cover" content="img1"/>
     <meta property="rendition:layout">pre-paginated</meta>
     <meta property="rendition:orientation">portrait</meta>
     <meta property="rendition:spread">both</meta>
@@ -72,7 +82,6 @@ class WriteFiles:
     <item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>
     <item id="css" href="html/style.css" media-type="text/css"/>
     <item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>
-    <item id="cover-image" href="images/cover.{cover_extension}" media-type="image/{cover_extension}" properties="cover-image"/>
 {manifest_items}
   </manifest>
   <spine toc="ncx" page-progression-direction="{'rtl' if read_order == 0 else 'ltr'}">
@@ -153,30 +162,6 @@ body {
       f.write(css_content)
 
 
-  def create_html_file(image_index, images_path, width, height, max_width, max_height, alignment, output_dir):
-    """Create an XHTML file for the given image."""
-        
-    image_filename = os.path.basename(images_path)
-
-    html_content = f'''<!DOCTYPE html>
-<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">
-  <head>
-    <title>image{image_index + 1}</title>
-    <link href="style.css" type="text/css" rel="stylesheet"/>
-    <meta name="viewport" content="width={max_width}, height={max_height}"/>
-  </head>
-  <body>
-    <div style="text-align:{alignment}; top:0.0%;">
-      <img width="{width}" height="{height}" src="../images/{image_filename}" alt="{image_filename}"/>
-    </div>
-  </body>
-</html>'''
-    output_path = os.path.join(output_dir, f'image-{image_index + 1:04d}.xhtml')
-
-    with open(output_path, 'w', encoding='utf-8') as f:
-      f.write(html_content)
-
-
   def add_html(image_paths, direction):
     """Generate the HTML files for all images."""
 
@@ -197,7 +182,25 @@ body {
       alignment = Helpers.get_alignment(i, direction)
 
       # generate HTML file
-      WriteFiles.create_html_file(i, image_path, width, height, max_width, max_height, alignment, output_dir)
+      image_filename = os.path.basename(image_path)
+
+      html_content = f'''<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">
+  <head>
+    <title>image{i+1}</title>
+    <link href="style.css" type="text/css" rel="stylesheet"/>
+    <meta name="viewport" content="width={max_width}, height={max_height}"/>
+  </head>
+  <body>
+    <div style="text-align:{alignment}; top:0.0%;">
+      <img width="{width}" height="{height}" src="../images/{image_filename}" alt="{image_filename}"/>
+    </div>
+  </body>
+</html>'''
+      output_path = os.path.join(output_dir, f'image-{i+1:04d}.xhtml')
+
+      with open(output_path, 'w', encoding='utf-8') as f:
+        f.write(html_content)
 
 
   def create_epub(epub_name):
