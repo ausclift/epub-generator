@@ -26,7 +26,6 @@ To fully uninstall the program, simply delete the application file and remove th
 ## TODO
 
 - Create temp files in the correct location (currently uses app folder)
-- Store last selected options in nekoconfig.json
 - Test/check error handling
 - Better UI
 
