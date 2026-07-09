@@ -47,7 +47,6 @@ class Model:
   def copy_images(self, original_image_paths, read_order, loss_mode):
     """Copy and rename source images into `images` directory."""
 
-    cover_extension = ''
     image_count = len(original_image_paths)
     current_progress = 0
 
@@ -63,7 +62,7 @@ class Model:
       if loss_mode == "lossless":
         out_extension = ".png"
       elif ext in {".jpg", ".jpeg"}:
-        out_extension = ".jpeg"
+        out_extension = ".jpg"
       else:
         out_extension = ".png"
 
@@ -77,7 +76,7 @@ class Model:
         width, height = img.size
 
         def save_img(im, path):
-          if loss_mode == "ultra" and path.suffix == ".jpeg":
+          if loss_mode == "ultra" and path.suffix == ".jpg":
             im.save(path, quality=90, optimize=True)
           else:
             im.save(path)
@@ -86,11 +85,6 @@ class Model:
         if width <= height:
           out_path = Paths.IMAGES / f'{image_filename}{out_extension}'
           save_img(img, out_path)
-
-          if i == 1:
-            cover_path = Paths.IMAGES / f'cover{out_extension}'
-            save_img(img, cover_path)
-            cover_extension = out_extension
 
         # landscape / spread
         else:
@@ -112,12 +106,10 @@ class Model:
           else:
             if read_order == 0:
               save_img(left_crop, left_path)
-              save_img(left_crop, Paths.IMAGES / f'cover{out_extension}')
+              save_img(left_crop, Paths.IMAGES / f'image-0001{out_extension}')
             else:
               save_img(right_crop, right_path)
-              save_img(right_crop, Paths.IMAGES / f'cover{out_extension}')
-
-            cover_extension = out_extension
+              save_img(right_crop, Paths.IMAGES / f'image-0001{out_extension}')
 
       # update progress (up to 50%)
       new_progress = ((i * 50) // image_count // 5) * 5
@@ -125,8 +117,6 @@ class Model:
       if new_progress > current_progress:
         current_progress = new_progress
         self.progress_callback(current_progress)
-
-    return cover_extension[1:]  # Strip leading dot for media type
 
   
   def create_image_epub(self, source_folder, loss_mode, read_order):
@@ -139,17 +129,15 @@ class Model:
     original_image_paths = self.collect_images(source_folder)
     
     self.progress_desc_callback("Copying images...")
-    cover_extension = self.copy_images(original_image_paths, read_order, loss_mode)
+    self.copy_images(original_image_paths, read_order, loss_mode)
 
     image_paths = self.collect_images(Paths.IMAGES)
-    WriteFiles.write_content_opf(image_paths[1:], book_uuid, cover_extension, read_order, source_folder)
-    WriteFiles.write_toc_ncx(image_paths[1:], book_uuid)
-    WriteFiles.write_nav_xhtml(image_paths[1:])
+    WriteFiles.write_content_opf(image_paths, book_uuid, read_order, source_folder)
+    WriteFiles.write_toc_ncx(image_paths, book_uuid)
+    WriteFiles.write_nav_xhtml(image_paths)
     WriteFiles.write_css_file()
-    self.progress_callback(55)
-    self.progress_desc_callback("Writing HTML...")
 
-    WriteFiles.add_html(image_paths[1:], read_order)
+    WriteFiles.add_html(image_paths, read_order)
     self.progress_callback(60)
     self.progress_desc_callback("Zipping files...")
 
@@ -157,6 +145,6 @@ class Model:
     self.progress_callback(100)
     self.progress_desc_callback("Done!")
 
-    # removes temporary files from local directory
+    # deletes temporary files from local directory
     # remove for troubleshooting
     shutil.rmtree('EPUB')
